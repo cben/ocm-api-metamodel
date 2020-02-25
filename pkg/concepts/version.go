@@ -17,7 +17,9 @@ limitations under the License.
 package concepts
 
 import (
+	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/openshift-online/ocm-api-metamodel/pkg/names"
 	"github.com/openshift-online/ocm-api-metamodel/pkg/nomenclator"
@@ -226,6 +228,7 @@ func (v *Version) AddErrors(errors []*Error) {
 // Paths returns the list of paths of this version. A path is a sequence of locators that go from
 // the root of the version to all reachable resources.
 func (v *Version) Paths() [][]*Locator {
+	fmt.Printf("==== %s.Paths() ->\n", v.owner.name)
 	// Start with a set of paths that contains the locators of the root resource and with an
 	// empty set of results:
 	var results [][]*Locator
@@ -233,6 +236,7 @@ func (v *Version) Paths() [][]*Locator {
 	for _, locator := range v.Root().Locators() {
 		path := []*Locator{locator}
 		pending = append(pending, path)
+		fmt.Printf("  added root: %s\n", v.printPath(path))
 	}
 
 	// Iterate the list of pending paths. For each pending path we will copy it to the list of
@@ -252,15 +256,32 @@ func (v *Version) Paths() [][]*Locator {
 		// Check if the path can be extended, and if so extend it and add it to the list of
 		// pending paths:
 		last := current[size-1]
+		fmt.Printf("  expanding %s\n", v.printPath(current))
 		for _, locator := range last.Target().Locators() {
 			path := make([]*Locator, size+1)
 			copy(path, current)
 			path[size] = locator
 			pending = append(pending, path)
+			fmt.Printf("    -> added %s\n", v.printPath(path))
 		}
 	}
 
+	for _, p := range results {
+		fmt.Printf("%s\n", v.printPath(p))
+	}
 	return results
+}
+
+func (v *Version) printPath(path []*Locator) string {
+	segments := make([]string, len(path))
+	for i, locator := range path {
+		if locator.Variable() {
+			segments[i] = fmt.Sprintf("<%s>", locator.Name().Snake())
+		} else {
+			segments[i] = locator.Name().Snake()
+		}
+	}
+	return strings.Join(segments, "/")
 }
 
 func (v *Version) addScalarType(name *names.Name) {
